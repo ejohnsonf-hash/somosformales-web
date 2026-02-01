@@ -8,7 +8,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
@@ -23,7 +23,7 @@ export default function LoginPage() {
     if (error) {
       setMessage("❌ Error enviando el link. Intenta de nuevo.");
     } else {
-      setMessage("📩 Te enviamos un link a tu correo para iniciar sesión.");
+      setMessage("📩 Te enviamos un link a tu correo.");
     }
 
     setLoading(false);
@@ -49,7 +49,7 @@ export default function LoginPage() {
           boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
         }}
       >
-        <h1 style={{ marginBottom: 16 }}>Entrar a Somos Formales</h1>
+        <h1 style={{ marginBottom: 16 }}>Entrar a SomosFormales</h1>
 
         <label>Email</label>
         <input
@@ -90,5 +90,6 @@ export default function LoginPage() {
     </div>
   );
 }
+
 
 
