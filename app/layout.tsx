@@ -1,7 +1,6 @@
 import "./globals.css";
-import type { Metadata } from "next";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "SomosFormales",
   description: "Formalización del trabajo del hogar en Perú",
 };
@@ -19,3 +18,4 @@ export default function RootLayout({
     </html>
   );
 }
+

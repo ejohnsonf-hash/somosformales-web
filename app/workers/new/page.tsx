@@ -1,130 +1,103 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
 
 export default function NewWorkerPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [households, setHouseholds] = useState<any[]>([]);
-  const [householdId, setHouseholdId] = useState("");
+  const householdId = searchParams.get("household_id");
 
+  const [fullName, setFullName] = useState("");
   const [documentType, setDocumentType] = useState("DNI");
   const [documentNumber, setDocumentNumber] = useState("");
-  const [fullName, setFullName] = useState("");
   const [birthDate, setBirthDate] = useState("");
-
   const [loading, setLoading] = useState(false);
 
-  /* ===========================
-     CARGAR HOGARES DEL USUARIO
-  ============================ */
+  // 🔒 Seguridad básica: si no viene household_id, no seguimos
   useEffect(() => {
-    const loadHouseholds = async () => {
-      const { data, error } = await supabase
-        .from("households")
-        .select("id, name");
+    if (!householdId) {
+      alert("Falta el hogar. Regresando al inicio.");
+      router.push("/home");
+    }
+  }, [householdId, router]);
 
-      if (error) {
-        console.error("Error cargando hogares:", error);
-        alert("Error cargando hogares");
-        return;
-      }
-
-      setHouseholds(data ?? []);
-    };
-
-    loadHouseholds();
-  }, []);
-
-  /* ===========================
-     CREAR TRABAJADORA
-  ============================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!householdId) return;
+
     setLoading(true);
 
     const { error } = await supabase.from("workers").insert({
+      full_name: fullName,
       document_type: documentType,
       document_number: documentNumber,
-      full_name: fullName,
       birth_date: birthDate || null,
       household_id: householdId,
     });
 
     if (error) {
-      console.error("Error creando trabajadora:", error);
       alert("Error creando trabajadora");
+      console.error(error);
       setLoading(false);
       return;
     }
 
-    alert("Trabajadora creada correctamente");
-    router.push("/workers");
+    // ✅ Volvemos al hogar correcto
+    router.push(`/households/${householdId}`);
   };
 
-  /* ===========================
-     UI
-  ============================ */
   return (
-    <div style={{ padding: 40, maxWidth: 480 }}>
+    <div style={{ padding: 40, maxWidth: 600 }}>
       <h1>Nueva trabajadora</h1>
 
       <form onSubmit={handleSubmit}>
-        <label>Hogar</label>
-        <select
-          required
-          value={householdId}
-          onChange={(e) => setHouseholdId(e.target.value)}
-        >
-          <option value="">Selecciona un hogar</option>
-          {households.map((h) => (
-            <option key={h.id} value={h.id}>
-              {h.name}
-            </option>
-          ))}
-        </select>
+        <div style={{ marginBottom: 12 }}>
+          <label>Nombre completo</label>
+          <input
+            type="text"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            style={{ width: "100%", padding: 8 }}
+          />
+        </div>
 
-        <br /><br />
+        <div style={{ marginBottom: 12 }}>
+          <label>Tipo de documento</label>
+          <select
+            value={documentType}
+            onChange={(e) => setDocumentType(e.target.value)}
+            style={{ width: "100%", padding: 8 }}
+          >
+            <option value="DNI">DNI</option>
+            <option value="CE">CE</option>
+          </select>
+        </div>
 
-        <label>Tipo de documento</label>
-        <select
-          value={documentType}
-          onChange={(e) => setDocumentType(e.target.value)}
-        >
-          <option value="DNI">DNI</option>
-          <option value="CE">CE</option>
-        </select>
+        <div style={{ marginBottom: 12 }}>
+          <label>Número de documento</label>
+          <input
+            type="text"
+            required
+            value={documentNumber}
+            onChange={(e) => setDocumentNumber(e.target.value)}
+            style={{ width: "100%", padding: 8 }}
+          />
+        </div>
 
-        <br /><br />
-
-        <label>Número de documento</label>
-        <input
-          required
-          value={documentNumber}
-          onChange={(e) => setDocumentNumber(e.target.value)}
-        />
-
-        <br /><br />
-
-        <label>Nombre completo</label>
-        <input
-          required
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-        />
-
-        <br /><br />
-
-        <label>Fecha de nacimiento</label>
-        <input
-          type="date"
-          value={birthDate}
-          onChange={(e) => setBirthDate(e.target.value)}
-        />
-
-        <br /><br />
+        <div style={{ marginBottom: 20 }}>
+          <label>Fecha de nacimiento (opcional)</label>
+          <input
+            type="date"
+            value={birthDate}
+            onChange={(e) => setBirthDate(e.target.value)}
+            style={{ width: "100%", padding: 8 }}
+          />
+        </div>
 
         <button disabled={loading}>
           {loading ? "Guardando..." : "Crear trabajadora"}

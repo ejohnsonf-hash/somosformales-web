@@ -7,16 +7,19 @@ import { useRouter } from "next/navigation";
 type Household = {
   id: string;
   name: string;
+  created_at: string;
 };
 
 export default function HomePage() {
   const router = useRouter();
+
+  const [email, setEmail] = useState<string | null>(null);
   const [households, setHouseholds] = useState<Household[]>([]);
-  const [activeHousehold, setActiveHousehold] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
+    const loadData = async () => {
+      // 1️⃣ Usuario
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
@@ -24,17 +27,16 @@ export default function HomePage() {
         return;
       }
 
-      const storedHousehold = localStorage.getItem("active_household_id");
-      setActiveHousehold(storedHousehold);
+      setEmail(userData.user.email ?? null);
 
+      // 2️⃣ Hogares
       const { data, error } = await supabase
         .from("households")
-        .select("id, name")
+        .select("id, name, created_at")
         .order("created_at", { ascending: false });
 
       if (error) {
-        alert("Error cargando hogares");
-        console.error(error);
+        console.error("Error cargando hogares:", error);
       } else {
         setHouseholds(data ?? []);
       }
@@ -42,47 +44,136 @@ export default function HomePage() {
       setLoading(false);
     };
 
-    load();
+    loadData();
   }, [router]);
 
-  const selectHousehold = (id: string) => {
-    localStorage.setItem("active_household_id", id);
-    setActiveHousehold(id);
-  };
-
   if (loading) {
-    return <p style={{ padding: 40 }}>Cargando hogares…</p>;
+    return <p style={{ padding: 32 }}>Cargando…</p>;
   }
 
   return (
-    <div style={{ padding: 40 }}>
-      <h1>Selecciona un hogar</h1>
+    <main
+      style={{
+        padding: 32,
+        maxWidth: 1100,
+      }}
+    >
+      {/* HEADER */}
+      <header style={{ marginBottom: 40 }}>
+        <h1 style={{ margin: 0 }}>Somos Formales</h1>
+        <p style={{ marginTop: 4, opacity: 0.7 }}>
+          Bienvenido{email ? `, ${email}` : ""}
+        </p>
 
-      <button onClick={() => router.push("/households/new")}>
-        ➕ Nuevo hogar
-      </button>
+        <button
+          onClick={async () => {
+            await supabase.auth.signOut();
+            router.push("/login");
+          }}
+          style={{
+            marginTop: 16,
+            padding: "8px 12px",
+            borderRadius: 6,
+            border: "1px solid color-mix(in srgb, CanvasText 25%, transparent)",
+            background: "transparent",
+            cursor: "pointer",
+          }}
+        >
+          Cerrar sesión
+        </button>
+      </header>
 
-      <ul style={{ marginTop: 20 }}>
-        {households.map((h) => (
-          <li key={h.id} style={{ marginBottom: 8 }}>
+      {/* HOGARES */}
+      <section>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 24,
+          }}
+        >
+          <h2 style={{ margin: 0 }}>Hogares</h2>
+
+          <button
+            onClick={() => router.push("/households/new")}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 6,
+              border: "none",
+              background: "color-mix(in srgb, CanvasText 90%, transparent)",
+              color: "Canvas",
+              cursor: "pointer",
+            }}
+          >
+            + Nuevo hogar
+          </button>
+        </div>
+
+        {/* LISTA */}
+        {households.length === 0 ? (
+          <div
+            style={{
+              border: "1px dashed color-mix(in srgb, CanvasText 30%, transparent)",
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 420,
+            }}
+          >
+            <p style={{ marginBottom: 16 }}>
+              Aún no has creado ningún hogar
+            </p>
+
             <button
-              onClick={() => selectHousehold(h.id)}
+              onClick={() => router.push("/households/new")}
               style={{
-                fontWeight: activeHousehold === h.id ? "bold" : "normal",
+                padding: "10px 16px",
+                borderRadius: 6,
+                border: "none",
+                background:
+                  "color-mix(in srgb, CanvasText 90%, transparent)",
+                color: "Canvas",
+                cursor: "pointer",
               }}
             >
-              {h.name}
-              {activeHousehold === h.id && " ✅"}
+              Crear primer hogar
             </button>
-          </li>
-        ))}
-      </ul>
-
-      {activeHousehold && (
-        <p style={{ marginTop: 20 }}>
-          Hogar activo seleccionado ✔
-        </p>
-      )}
-    </div>
+          </div>
+        ) : (
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: 0,
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 16,
+            }}
+          >
+            {households.map((h) => (
+              <li
+                key={h.id}
+                style={{
+                  border:
+                    "1px solid color-mix(in srgb, CanvasText 20%, transparent)",
+                  borderRadius: 10,
+                  padding: 16,
+                  cursor: "pointer",
+                }}
+                onClick={() => router.push(`/households/${h.id}`)}
+              >
+                <h3 style={{ marginTop: 0, marginBottom: 8 }}>
+                  {h.name}
+                </h3>
+                <p style={{ margin: 0, fontSize: 14, opacity: 0.6 }}>
+                  Creado el{" "}
+                  {new Date(h.created_at).toLocaleDateString("es-PE")}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
   );
 }

@@ -8,7 +8,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
@@ -30,40 +30,46 @@ export default function LoginPage() {
   };
 
   return (
-    <div
+    <main
       style={{
         minHeight: "100vh",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#f5f5f5",
+        padding: 24,
       }}
     >
       <form
         onSubmit={handleLogin}
         style={{
-          background: "white",
-          padding: 32,
-          borderRadius: 8,
-          width: 360,
-          boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+          width: "100%",
+          maxWidth: 360,
+          padding: 24,
+          borderRadius: 12,
+          border: "1px solid color-mix(in srgb, CanvasText 15%, transparent)",
         }}
       >
-        <h1 style={{ marginBottom: 16 }}>Entrar a SomosFormales</h1>
+        <h1 style={{ marginBottom: 12 }}>Somos Formales</h1>
+        <p style={{ marginBottom: 20, opacity: 0.8 }}>
+          Ingresa tu correo para continuar
+        </p>
 
-        <label>Email</label>
+        <label style={{ fontSize: 14 }}>Email</label>
         <input
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          placeholder="tu@email.com"
           style={{
             width: "100%",
             padding: 10,
             marginTop: 4,
-            marginBottom: 12,
-            borderRadius: 4,
-            border: "1px solid #ccc",
+            marginBottom: 16,
+            borderRadius: 6,
+            border: "1px solid color-mix(in srgb, CanvasText 25%, transparent)",
+            background: "transparent",
+            color: "inherit",
           }}
         />
 
@@ -73,11 +79,11 @@ export default function LoginPage() {
           style={{
             width: "100%",
             padding: 10,
-            background: "#111",
-            color: "white",
-            borderRadius: 4,
+            borderRadius: 6,
             border: "none",
             cursor: "pointer",
+            background: "color-mix(in srgb, CanvasText 90%, transparent)",
+            color: "Canvas",
           }}
         >
           {loading ? "Enviando..." : "Entrar con magic link"}
@@ -87,9 +93,8 @@ export default function LoginPage() {
           <p style={{ marginTop: 16, fontSize: 14 }}>{message}</p>
         )}
       </form>
-    </div>
+    </main>
   );
 }
-
 
 
