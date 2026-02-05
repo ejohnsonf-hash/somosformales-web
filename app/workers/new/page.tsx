@@ -1,108 +1,80 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useRouter, useSearchParams } from "next/navigation";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
 
 export default function NewWorkerPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const householdId = searchParams.get("household_id");
+  const householdId = searchParams.get("householdId");
 
   const [fullName, setFullName] = useState("");
-  const [documentType, setDocumentType] = useState("DNI");
   const [documentNumber, setDocumentNumber] = useState("");
-  const [birthDate, setBirthDate] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 🔒 Seguridad básica: si no viene household_id, no seguimos
-  useEffect(() => {
-    if (!householdId) {
-      alert("Falta el hogar. Regresando al inicio.");
-      router.push("/home");
-    }
-  }, [householdId, router]);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!householdId) return;
-
+  async function createWorker() {
     setLoading(true);
 
     const { error } = await supabase.from("workers").insert({
       full_name: fullName,
-      document_type: documentType,
+      document_type: "DNI",
       document_number: documentNumber,
-      birth_date: birthDate || null,
       household_id: householdId,
     });
+
+    setLoading(false);
 
     if (error) {
       alert("Error creando trabajadora");
       console.error(error);
-      setLoading(false);
       return;
     }
 
-    // ✅ Volvemos al hogar correcto
     router.push(`/households/${householdId}`);
-  };
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setShowConfirm(true);
+  }
 
   return (
-    <div style={{ padding: 40, maxWidth: 600 }}>
+    <div style={{ padding: 40, maxWidth: 480 }}>
       <h1>Nueva trabajadora</h1>
 
       <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Nombre completo</label>
-          <input
-            type="text"
-            required
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            style={{ width: "100%", padding: 8 }}
-          />
-        </div>
+        <label>Nombre completo</label>
+        <input
+          required
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          style={{ width: "100%", marginBottom: 12 }}
+        />
 
-        <div style={{ marginBottom: 12 }}>
-          <label>Tipo de documento</label>
-          <select
-            value={documentType}
-            onChange={(e) => setDocumentType(e.target.value)}
-            style={{ width: "100%", padding: 8 }}
-          >
-            <option value="DNI">DNI</option>
-            <option value="CE">CE</option>
-          </select>
-        </div>
+        <label>DNI</label>
+        <input
+          required
+          value={documentNumber}
+          onChange={(e) => setDocumentNumber(e.target.value)}
+          style={{ width: "100%", marginBottom: 20 }}
+        />
 
-        <div style={{ marginBottom: 12 }}>
-          <label>Número de documento</label>
-          <input
-            type="text"
-            required
-            value={documentNumber}
-            onChange={(e) => setDocumentNumber(e.target.value)}
-            style={{ width: "100%", padding: 8 }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <label>Fecha de nacimiento (opcional)</label>
-          <input
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            style={{ width: "100%", padding: 8 }}
-          />
-        </div>
-
-        <button disabled={loading}>
-          {loading ? "Guardando..." : "Crear trabajadora"}
+        <button type="submit" disabled={loading}>
+          Crear trabajadora
         </button>
       </form>
+
+      <ConfirmDialog
+        open={showConfirm}
+        title="Confirmar creación"
+        message="¿Confirmas que deseas crear esta trabajadora? Luego no podrá eliminarse, solo desactivarse."
+        onCancel={() => setShowConfirm(false)}
+        onConfirm={createWorker}
+      />
     </div>
   );
 }

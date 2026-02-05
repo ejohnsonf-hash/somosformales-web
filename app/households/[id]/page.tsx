@@ -1,84 +1,67 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import Link from "next/link";
-
-type Household = {
-  id: string;
-  name: string;
-};
-
-type Worker = {
-  id: string;
-  full_name: string;
-};
+import { useParams, useRouter } from "next/navigation";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
 
 export default function HouseholdDetailPage() {
-  const params = useParams();
+  const { id } = useParams();
   const router = useRouter();
-  const householdId = params.id as string;
 
-  const [household, setHousehold] = useState<Household | null>(null);
-  const [workers, setWorkers] = useState<Worker[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [household, setHousehold] = useState<any>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
-    const loadData = async () => {
-      const { data: householdData } = await supabase
+    const load = async () => {
+      const { data } = await supabase
         .from("households")
-        .select("id, name")
-        .eq("id", householdId)
+        .select("*")
+        .eq("id", id)
         .single();
 
-      const { data: workersData } = await supabase
-        .from("workers")
-        .select("id, full_name")
-        .eq("household_id", householdId);
-
-      setHousehold(householdData);
-      setWorkers(workersData || []);
-      setLoading(false);
+      setHousehold(data);
     };
 
-    loadData();
-  }, [householdId]);
+    load();
+  }, [id]);
 
-  if (loading) {
-    return <p style={{ padding: 40 }}>Cargando…</p>;
+  async function deactivateHousehold() {
+    await supabase
+      .from("households")
+      .update({ is_active: false })
+      .eq("id", id);
+
+    router.push("/home");
   }
 
-  if (!household) {
-    return <p style={{ padding: 40 }}>Hogar no encontrado</p>;
-  }
+  if (!household) return <p style={{ padding: 40 }}>Cargando…</p>;
 
   return (
     <div style={{ padding: 40 }}>
-      {/* 🔙 BOTÓN REGRESAR */}
-      <button onClick={() => router.push("/home")}>
-        ← Volver al inicio
-      </button>
+      <button onClick={() => router.back()}>← Regresar</button>
 
-      <h1 style={{ marginTop: 20 }}>{household.name}</h1>
+      <h1>{household.name}</h1>
+      <p>{household.address}</p>
 
-      <h2 style={{ marginTop: 30 }}>Trabajadoras</h2>
+      {household.is_active && (
+        <>
+          <button
+            style={{ marginTop: 24, color: "red" }}
+            onClick={() => setShowConfirm(true)}
+          >
+            Desactivar hogar
+          </button>
 
-      {workers.length === 0 && <p>No hay trabajadoras registradas</p>}
-
-      <ul>
-        {workers.map((w) => (
-          <li key={w.id}>
-            <Link href={`/workers/${w.id}`}>{w.full_name}</Link>
-          </li>
-        ))}
-      </ul>
-
-      <div style={{ marginTop: 20 }}>
-        <Link href={`/workers/new?household_id=${household.id}`}>
-          ➕ Nueva trabajadora
-        </Link>
-      </div>
+          <ConfirmDialog
+            open={showConfirm}
+            title="Desactivar hogar"
+            message="¿Seguro? El hogar quedará inactivo pero el historial se conservará."
+            onCancel={() => setShowConfirm(false)}
+            onConfirm={deactivateHousehold}
+          />
+        </>
+      )}
     </div>
   );
 }
