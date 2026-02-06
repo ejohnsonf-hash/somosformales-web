@@ -1,7 +1,8 @@
 import "./globals.css";
+import Header from "./components/Header";
 
 export const metadata = {
-  title: "SomosFormales",
+  title: "Somos Formales",
   description: "Formalización del trabajo del hogar en Perú",
 };
 
@@ -13,9 +14,13 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        {children}
+        <div className="app-container">
+          <Header />
+          {children}
+        </div>
       </body>
     </html>
   );
 }
+
 
