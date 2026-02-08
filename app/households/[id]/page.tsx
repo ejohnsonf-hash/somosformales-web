@@ -1,110 +1,145 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { useParams } from "next/navigation";
-import Link from "next/link";
+import Header from "@/app/components/Header";
+import PageHeader from "@/components/PageHeader";
+
+type WorkerRelation = {
+  id: string;
+  start_date: string;
+  workers: {
+    id: string;
+    full_name: string;
+    document_number: string;
+    birth_date: string | null;
+  };
+};
 
 type Household = {
   id: string;
   name: string;
 };
 
-type Worker = {
-  id: string;
-  full_name: string;
-  document_number: string;
-  birth_date: string | null;
-};
-
 export default function HouseholdDetailPage() {
+  const router = useRouter();
   const params = useParams();
   const householdId = params.id as string;
 
-  const [household, setHousehold] = useState<Household | null>(null);
-  const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [household, setHousehold] = useState<Household | null>(null);
+  const [workers, setWorkers] = useState<WorkerRelation[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
-      // 1️⃣ Traer hogar
+      // 1️⃣ Validar sesión
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        router.push("/login");
+        return;
+      }
+
+      // 2️⃣ Cargar hogar
       const { data: householdData, error: householdError } = await supabase
         .from("households")
         .select("id, name")
         .eq("id", householdId)
         .single();
 
-      if (householdError) {
-        console.error(householdError);
-        setLoading(false);
+      if (householdError || !householdData) {
+        console.error("Error cargando hogar", householdError);
+        router.push("/households");
         return;
       }
 
       setHousehold(householdData);
 
-      // 2️⃣ Traer trabajadoras del hogar
-      const { data: workersData, error: workersError } = await supabase
-        .from("workers")
-        .select("id, full_name, document_number, birth_date")
+      // 3️⃣ Cargar trabajadoras del hogar
+      const { data: relations, error: relationsError } = await supabase
+        .from("employment_relationships")
+        .select(
+          `
+          id,
+          start_date,
+          workers (
+            id,
+            full_name,
+            document_number,
+            birth_date
+          )
+        `
+        )
         .eq("household_id", householdId)
-        .order("created_at", { ascending: false });
+        .order("start_date", { ascending: true });
 
-      if (workersError) {
-        console.error(workersError);
+      if (relationsError) {
+        console.error("Error cargando trabajadoras", relationsError);
       } else {
-        setWorkers(workersData || []);
+        setWorkers(relations ?? []);
       }
 
       setLoading(false);
     };
 
     loadData();
-  }, [householdId]);
+  }, [router, householdId]);
 
   if (loading) {
-    return <p style={{ padding: 40 }}>Cargando hogar…</p>;
+    return <p style={{ padding: 40 }}>Cargando…</p>;
   }
 
   if (!household) {
-    return <p style={{ padding: 40 }}>Hogar no encontrado</p>;
+    return <p style={{ padding: 40 }}>Hogar no encontrado.</p>;
   }
 
   return (
     <div style={{ padding: 40 }}>
-      <Link href="/households">← Volver a hogares</Link>
+      {/* Header global */}
+      <Header />
 
-      <h1 style={{ marginTop: 20 }}>{household.name}</h1>
+      {/* Page header */}
+      <PageHeader title={household.name} backTo="/households" />
 
-      <div style={{ margin: "20px 0" }}>
-        <Link href={`/workers/new?household_id=${household.id}`}>
-          <button>➕ Nueva trabajadora</button>
-        </Link>
+      {/* Acción principal */}
+      <div style={{ marginBottom: 24 }}>
+        <button
+          onClick={() =>
+            router.push(`/households/${householdId}/workers/new`)
+          }
+        >
+          ➕ Agregar trabajadora
+        </button>
       </div>
 
-      <h2>Trabajadoras</h2>
-
+      {/* Lista de trabajadoras */}
       {workers.length === 0 ? (
-        <p>No hay trabajadoras registradas en este hogar.</p>
+        <p>Este hogar aún no tiene trabajadoras registradas.</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {workers.map((worker) => (
-            <li
-              key={worker.id}
-              style={{
-                padding: 12,
-                border: "1px solid #ddd",
-                borderRadius: 6,
-                marginBottom: 10,
-              }}
-            >
-              <strong>{worker.full_name}</strong>
-              <div>DNI: {worker.document_number}</div>
-              {worker.birth_date && (
-                <div>Fecha de nacimiento: {worker.birth_date}</div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            marginTop: 16,
+          }}
+        >
+          <thead>
+            <tr>
+              <th align="left">Nombre</th>
+              <th align="left">DNI</th>
+              <th align="left">Inicio relación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {workers.map((rel) => (
+              <tr key={rel.id}>
+                <td>{rel.workers.full_name}</td>
+                <td>{rel.workers.document_number}</td>
+                <td>{rel.start_date}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
