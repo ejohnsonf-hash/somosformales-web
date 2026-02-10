@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import PageHeader from "@/components/PageHeader";
 
 type Worker = {
   id: string;
@@ -12,87 +13,138 @@ type Worker = {
   birth_date: string | null;
 };
 
-type EmploymentRelationship = {
+type Relationship = {
+  id: string;
   start_date: string;
+  household: {
+    id: string;
+    name: string;
+  };
 };
 
 export default function WorkerDetailPage() {
-  const params = useParams();
+  const { id: workerId } = useParams();
   const router = useRouter();
-  const workerId = params.id as string;
 
   const [worker, setWorker] = useState<Worker | null>(null);
-  const [relationship, setRelationship] =
-    useState<EmploymentRelationship | null>(null);
+  const [relations, setRelations] = useState<Relationship[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
-      // 1️⃣ Obtener trabajadora
+      // 1️⃣ Trabajadora
       const { data: workerData, error: workerError } = await supabase
         .from("workers")
         .select("*")
         .eq("id", workerId)
         .single();
 
-      if (workerError || !workerData) {
+      if (workerError) {
+        console.error("ERROR WORKER:", workerError);
         alert("No se pudo cargar la trabajadora");
-        router.push("/workers");
+        setLoading(false);
         return;
       }
 
       setWorker(workerData);
 
-      // 2️⃣ Obtener relación laboral activa
-      const { data: relationData, error: relationError } = await supabase
+      // 2️⃣ Relaciones laborales
+      const { data: relationsData, error: relationsError } = await supabase
         .from("employment_relationships")
-        .select("start_date")
+        .select(
+          `
+          id,
+          start_date,
+          household:households (
+            id,
+            name
+          )
+        `
+        )
         .eq("worker_id", workerId)
-        .is("end_date", null)
-        .order("start_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order("start_date", { ascending: true });
 
-      if (!relationError && relationData) {
-        setRelationship(relationData);
+      if (relationsError) {
+        console.error("ERROR RELATIONS:", relationsError);
+        alert("No se pudieron cargar las relaciones laborales");
+        setLoading(false);
+        return;
       }
 
+      setRelations(relationsData || []);
       setLoading(false);
     };
 
     loadData();
-  }, [workerId, router]);
+  }, [workerId]);
 
   if (loading) {
     return <p style={{ padding: 40 }}>Cargando…</p>;
   }
 
-  if (!worker) return null;
+  if (!worker) {
+    return <p style={{ padding: 40 }}>Trabajadora no encontrada</p>;
+  }
 
   return (
     <div style={{ padding: 40 }}>
-      <button onClick={() => router.back()} style={{ marginBottom: 20 }}>
-        ← Regresar
-      </button>
+      <PageHeader title="Detalle de trabajadora" backTo="/workers" />
 
-      <h1>{worker.full_name}</h1>
+      <div style={{ marginBottom: 24 }}>
+        <h2>{worker.full_name}</h2>
+        <p>
+          {worker.document_type}: {worker.document_number}
+        </p>
+        {worker.birth_date && (
+          <p>
+            Fecha de nacimiento:{" "}
+            {new Date(worker.birth_date).toLocaleDateString("es-PE")}
+          </p>
+        )}
+      </div>
 
-      <p>
-        <strong>Documento:</strong> {worker.document_type}{" "}
-        {worker.document_number}
-      </p>
+      <h3>Relaciones laborales</h3>
 
-      <p>
-        <strong>Fecha de nacimiento:</strong>{" "}
-        {worker.birth_date ?? "No registrada"}
-      </p>
+      {relations.length === 0 && (
+        <p>Esta trabajadora no tiene relaciones laborales activas.</p>
+      )}
 
-      <p>
-        <strong>Inicio de relación laboral:</strong>{" "}
-        {relationship
-          ? new Date(relationship.start_date).toLocaleDateString("es-PE")
-          : "No se encontró relación laboral activa"}
-      </p>
+      {relations.length > 0 && (
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            marginTop: 12,
+          }}
+        >
+          <thead>
+            <tr>
+              <th align="left">Hogar</th>
+              <th align="left">Inicio</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {relations.map((rel) => (
+              <tr key={rel.id}>
+                <td>{rel.household.name}</td>
+                <td>
+                  {new Date(rel.start_date).toLocaleDateString("es-PE")}
+                </td>
+                <td>
+                  <button
+                    onClick={() =>
+                      router.push(`/households/${rel.household.id}`)
+                    }
+                  >
+                    Ver hogar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

@@ -1,121 +1,78 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import Header from "@/app/components/Header";
 import PageHeader from "@/components/PageHeader";
 
 type WorkerRelation = {
   id: string;
   start_date: string;
-  workers: {
+  worker: {
     id: string;
     full_name: string;
     document_number: string;
-    birth_date: string | null;
   };
 };
 
-type Household = {
-  id: string;
-  name: string;
-};
-
 export default function HouseholdDetailPage() {
+  const { id: householdId } = useParams();
   const router = useRouter();
-  const params = useParams();
-  const householdId = params.id as string;
 
-  const [loading, setLoading] = useState(true);
-  const [household, setHousehold] = useState<Household | null>(null);
   const [workers, setWorkers] = useState<WorkerRelation[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadData = async () => {
-      // 1️⃣ Validar sesión
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        router.push("/login");
-        return;
-      }
-
-      // 2️⃣ Cargar hogar
-      const { data: householdData, error: householdError } = await supabase
-        .from("households")
-        .select("id, name")
-        .eq("id", householdId)
-        .single();
-
-      if (householdError || !householdData) {
-        console.error("Error cargando hogar", householdError);
-        router.push("/households");
-        return;
-      }
-
-      setHousehold(householdData);
-
-      // 3️⃣ Cargar trabajadoras del hogar
-      const { data: relations, error: relationsError } = await supabase
+    const loadWorkers = async () => {
+      const { data, error } = await supabase
         .from("employment_relationships")
         .select(
           `
           id,
           start_date,
-          workers (
+          worker:workers (
             id,
             full_name,
-            document_number,
-            birth_date
+            document_number
           )
         `
         )
         .eq("household_id", householdId)
         .order("start_date", { ascending: true });
 
-      if (relationsError) {
-        console.error("Error cargando trabajadoras", relationsError);
-      } else {
-        setWorkers(relations ?? []);
+      if (error) {
+        console.error("ERROR CARGANDO TRABAJADORAS:", error);
+        alert("No se pudieron cargar las trabajadoras");
+        setLoading(false);
+        return;
       }
 
+      setWorkers(data || []);
       setLoading(false);
     };
 
-    loadData();
-  }, [router, householdId]);
-
-  if (loading) {
-    return <p style={{ padding: 40 }}>Cargando…</p>;
-  }
-
-  if (!household) {
-    return <p style={{ padding: 40 }}>Hogar no encontrado.</p>;
-  }
+    loadWorkers();
+  }, [householdId]);
 
   return (
     <div style={{ padding: 40 }}>
-      {/* Header global */}
-      <Header />
+      <PageHeader title="Hogar" backTo="/home" />
 
-      {/* Page header */}
-      <PageHeader title={household.name} backTo="/households" />
-
-      {/* Acción principal */}
       <div style={{ marginBottom: 24 }}>
         <button
-          onClick={() =>
-            router.push(`/households/${householdId}/workers/new`)
-          }
+          onClick={() => router.push(`/households/${householdId}/workers/new`)}
         >
-          ➕ Agregar trabajadora
+          ➕ Nueva trabajadora
         </button>
       </div>
 
-      {/* Lista de trabajadoras */}
-      {workers.length === 0 ? (
-        <p>Este hogar aún no tiene trabajadoras registradas.</p>
-      ) : (
+      {loading && <p>Cargando trabajadoras…</p>}
+
+      {!loading && workers.length === 0 && (
+        <p>No hay trabajadoras registradas en este hogar.</p>
+      )}
+
+      {!loading && workers.length > 0 && (
         <table
           style={{
             width: "100%",
@@ -128,14 +85,26 @@ export default function HouseholdDetailPage() {
               <th align="left">Nombre</th>
               <th align="left">DNI</th>
               <th align="left">Inicio relación</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {workers.map((rel) => (
               <tr key={rel.id}>
-                <td>{rel.workers.full_name}</td>
-                <td>{rel.workers.document_number}</td>
-                <td>{rel.start_date}</td>
+                <td>{rel.worker.full_name}</td>
+                <td>{rel.worker.document_number}</td>
+                <td>
+                  {new Date(rel.start_date).toLocaleDateString("es-PE")}
+                </td>
+                <td>
+                  <button
+                    onClick={() =>
+                      router.push(`/workers/${rel.worker.id}`)
+                    }
+                  >
+                    Ver
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
