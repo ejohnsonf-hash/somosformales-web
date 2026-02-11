@@ -1,5 +1,5 @@
 import "./globals.css";
-import Header from "./components/Header";
+import Header from "@/app/components/Header";
 
 export const metadata = {
   title: "Somos Formales",
@@ -14,7 +14,13 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <div className="app-container">
+        <div
+          style={{
+            maxWidth: 960,
+            margin: "0 auto",
+            padding: 24,
+          }}
+        >
           <Header />
           {children}
         </div>
@@ -22,5 +28,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-

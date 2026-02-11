@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import Header from "@/app/components/Header";
 import PageHeader from "@/components/PageHeader";
 
 type Household = {
@@ -19,14 +18,14 @@ export default function HouseholdsPage() {
 
   useEffect(() => {
     const loadHouseholds = async () => {
-      // 1️⃣ Validar sesión
+      // Validar sesión
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
         router.push("/login");
         return;
       }
 
-      // 2️⃣ Cargar hogares
+      // Cargar hogares
       const { data, error } = await supabase
         .from("households")
         .select("id, name, created_at")
@@ -50,10 +49,7 @@ export default function HouseholdsPage() {
 
   return (
     <div style={{ padding: 40 }}>
-      {/* Header global */}
-      <Header />
-
-      {/* Page header con botón volver */}
+      {/* ÚNICO header de página */}
       <PageHeader title="Hogares" backTo="/home" />
 
       {/* Acción principal */}
@@ -83,3 +79,4 @@ export default function HouseholdsPage() {
     </div>
   );
 }
+
