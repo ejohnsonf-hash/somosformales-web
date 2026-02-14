@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { RMV_PEN } from "@/app/lib/constants";
 import PageHeader from "@/components/PageHeader";
 
 type Household = {
@@ -28,6 +29,8 @@ export default function NewWorkerPage() {
   const [initialVacationBalance, setInitialVacationBalance] = useState(0);
   const [regularizationNotes, setRegularizationNotes] = useState("");
 
+  const [salaryAmount, setSalaryAmount] = useState<number>(0);
+
   useEffect(() => {
     const loadHouseholds = async () => {
       const { data, error } = await supabase
@@ -51,6 +54,18 @@ export default function NewWorkerPage() {
       return;
     }
 
+    if (salaryAmount <= 0) {
+      alert("Ingresa un salario válido");
+      return;
+    }
+
+    if (salaryAmount < RMV_PEN) {
+      const confirmLowSalary = confirm(
+        `El salario es menor a la RMV vigente (S/ ${RMV_PEN}). ¿Deseas continuar?`
+      );
+      if (!confirmLowSalary) return;
+    }
+
     setLoading(true);
 
     try {
@@ -71,7 +86,7 @@ export default function NewWorkerPage() {
             {
               full_name: fullName,
               document_type: "DNI",
-	      document_number: documentNumber,
+              document_number: documentNumber,
               birth_date: birthDate || null,
               household_id: selectedHousehold,
             },
@@ -103,7 +118,7 @@ export default function NewWorkerPage() {
       }
 
       // 📌 Crear relación laboral
-      const { error: relationError } = await supabase
+      const { data: newRelation, error: relationError } = await supabase
         .from("employment_relationships")
         .insert([
           {
@@ -119,11 +134,35 @@ export default function NewWorkerPage() {
               ? initialVacationBalance
               : 0,
           },
-        ]);
+        ])
+        .select()
+        .single();
 
-      if (relationError) {
+      if (relationError || !newRelation) {
         console.error("ERROR CREANDO RELACIÓN:", relationError);
         alert("Trabajadora creada, pero falló la relación laboral");
+        return;
+      }
+
+      // 💰 Crear salary_version
+      const { error: salaryError } = await supabase
+        .from("salary_versions")
+        .insert([
+          {
+            employment_relationship_id: newRelation.id,
+            salary_amount: salaryAmount,
+            salary_type: "monthly",
+            currency: "PEN",
+            start_date: startDate,
+            end_date: null,
+            below_rmv: salaryAmount < RMV_PEN,
+            rmv_reference: RMV_PEN,
+          },
+        ]);
+
+      if (salaryError) {
+        console.error("ERROR CREANDO SALARIO:", salaryError);
+        alert("Relación creada, pero falló el registro del salario");
         return;
       }
 
@@ -243,6 +282,23 @@ export default function NewWorkerPage() {
             </div>
           </>
         )}
+
+        <div style={{ marginBottom: 16 }}>
+          <label>Salario mensual (S/)</label>
+          <input
+            type="number"
+            value={salaryAmount}
+            onChange={(e) => setSalaryAmount(Number(e.target.value))}
+            min={0}
+            required
+            style={{ width: "100%", padding: 8 }}
+          />
+          {salaryAmount > 0 && salaryAmount < RMV_PEN && (
+            <small style={{ color: "orange" }}>
+              Advertencia: el salario es menor a la RMV vigente (S/ {RMV_PEN})
+            </small>
+          )}
+        </div>
 
         <button type="submit" disabled={loading}>
           {loading ? "Guardando..." : "Guardar trabajadora"}
